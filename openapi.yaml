@@ -1,0 +1,294 @@
+openapi: 3.1.0
+info:
+  title: 勤怠管理システム API
+  description: >
+    社員・管理者向けの勤怠管理API仕様書（PostgreSQL対応）  
+    各エンドポイントは `/api/` プレフィックスを使用します。
+  version: 1.0.0
+servers:
+  - url: https://api.example.com
+    description: 本番環境
+  - url: http://localhost:8000
+    description: 開発環境
+
+tags:
+  - name: Auth
+    description: 認証関連API
+  - name: Attendance
+    description: 勤怠打刻API
+  - name: Leave
+    description: 有給申請API
+  - name: Admin
+    description: 管理者機能API
+
+paths:
+  /api/login:
+    post:
+      tags: [Auth]
+      summary: ログイン
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                employee_no:
+                  type: string
+                password:
+                  type: string
+      responses:
+        "200":
+          description: ログイン成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token: { type: string }
+                  user:
+                    $ref: "#/components/schemas/User"
+        "401":
+          description: 認証失敗
+
+  /api/users/me:
+    get:
+      tags: [Auth]
+      summary: 自分のプロフィール取得
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: ユーザー情報
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+
+  /api/attendance/today:
+    get:
+      tags: [Attendance]
+      summary: 今日の勤怠情報を取得
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: 勤怠情報
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Attendance"
+
+  /api/attendance/clock_in:
+    post:
+      tags: [Attendance]
+      summary: 出勤打刻
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: 出勤打刻完了
+
+  /api/attendance/clock_out:
+    post:
+      tags: [Attendance]
+      summary: 退勤打刻
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: 退勤打刻完了
+
+  /api/attendance/history:
+    get:
+      tags: [Attendance]
+      summary: 勤怠履歴（月別）
+      parameters:
+        - name: start_date
+          in: query
+          schema: { type: string, format: date }
+        - name: end_date
+          in: query
+          schema: { type: string, format: date }
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: 勤怠履歴一覧
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Attendance"
+
+  /api/attendance_corrections:
+    post:
+      tags: [Attendance]
+      summary: 勤怠修正申請を登録
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AttendanceCorrection"
+      responses:
+        "200":
+          description: 登録成功
+
+  /api/leave_requests:
+    post:
+      tags: [Leave]
+      summary: 有給休暇申請を登録
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LeaveRequest"
+      responses:
+        "200":
+          description: 登録成功
+
+  /api/admin/users:
+    get:
+      tags: [Admin]
+      summary: 社員一覧を取得
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: 社員一覧
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/User"
+
+  /api/admin/attendances:
+    get:
+      tags: [Admin]
+      summary: 全社員の勤怠一覧を取得
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: start_date
+          in: query
+          schema: { type: string, format: date }
+        - name: end_date
+          in: query
+          schema: { type: string, format: date }
+      responses:
+        "200":
+          description: 勤怠一覧
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Attendance"
+
+  /api/admin/attendance_corrections:
+    get:
+      tags: [Admin]
+      summary: 修正申請一覧（承認待ち含む）
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: 修正申請リスト
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AttendanceCorrection"
+
+  /api/admin/attendance_corrections/{id}/approve:
+    put:
+      tags: [Admin]
+      summary: 修正申請を承認
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: 承認完了
+
+  /api/admin/leave_requests/{id}/approve:
+    put:
+      tags: [Admin]
+      summary: 有給申請を承認
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: 承認完了
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    User:
+      type: object
+      properties:
+        user_id: { type: integer }
+        employee_no: { type: string }
+        name: { type: string }
+        email: { type: string }
+        department_id: { type: integer }
+        role: { type: string }
+        hire_date: { type: string, format: date }
+        status: { type: string }
+
+    Attendance:
+      type: object
+      properties:
+        attendance_id: { type: integer }
+        user_id: { type: integer }
+        work_date: { type: string, format: date }
+        clock_in: { type: string, format: date-time }
+        break_start: { type: string, format: date-time }
+        break_end: { type: string, format: date-time }
+        clock_out: { type: string, format: date-time }
+        total_work_time: { type: string }
+        status: { type: string }
+
+    AttendanceCorrection:
+      type: object
+      properties:
+        correction_id: { type: integer }
+        user_id: { type: integer }
+        attendance_id: { type: integer }
+        before_clock_in: { type: string, format: date-time }
+        after_clock_in: { type: string, format: date-time }
+        reason: { type: string }
+        status: { type: string }
+
+    LeaveRequest:
+      type: object
+      properties:
+        leave_request_id: { type: integer }
+        user_id: { type: integer }
+        date_from: { type: string, format: date }
+        date_to: { type: string, format: date }
+        reason: { type: string }
+        status: { type: string }

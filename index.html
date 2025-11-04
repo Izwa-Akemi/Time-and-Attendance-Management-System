@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <title>勤怠管理システム API ドキュメント</title>
+    <link
+      rel="stylesheet"
+      type="text/css"
+      href="https://unpkg.com/swagger-ui-dist@5/swagger-ui.css"
+    />
+    <style>
+      body {
+        margin: 0;
+        background-color: #f9fafb;
+      }
+      .topbar {
+        background: #1e293b !important;
+      }
+      .topbar-wrapper img {
+        content: url("https://upload.wikimedia.org/wikipedia/commons/a/ab/Swagger-logo.png");
+        width: 120px;
+      }
+      .topbar-wrapper .link span {
+        color: white !important;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="swagger-ui"></div>
+
+    <script src="https://unpkg.com/swagger-ui-dist@5/swagger-ui-bundle.js"></script>
+    <script>
+      window.onload = () => {
+        const ui = SwaggerUIBundle({
+          url: "openapi.yaml", // ← あなたのAPI定義ファイル名
+          dom_id: "#swagger-ui",
+          deepLinking: true,
+          presets: [SwaggerUIBundle.presets.apis],
+          layout: "BaseLayout",
+          persistAuthorization: true, // JWT保持
+          supportedSubmitMethods: ["get", "post", "put", "delete"],
+          docExpansion: "none", // 初期状態で折りたたみ
+          tryItOutEnabled: true
+        });
+        window.ui = ui;
+      };
+    </script>
+  </body>
+</html>
