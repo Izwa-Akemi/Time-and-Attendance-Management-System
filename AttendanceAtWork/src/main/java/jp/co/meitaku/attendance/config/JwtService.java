@@ -85,8 +85,8 @@ public class JwtService {
      * 🔒 署名キー取得
      */
     private Key getSignKey() {
-        byte[] keyBytes = Decoders.BASE64.decode(secretKey);
-        return Keys.hmacShaKeyFor(keyBytes);
+    	// ✅ Base64ではなく、通常の文字列をそのままHMACキーとして使用
+        return Keys.hmacShaKeyFor(secretKey.getBytes());
     }
 
     /**

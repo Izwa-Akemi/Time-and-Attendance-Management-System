@@ -29,40 +29,45 @@ public class SecurityConfig {
     private final PasswordEncoder passwordEncoder;
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain restApiSecurityFilterChain(HttpSecurity http) throws Exception {
         http
-            // ✅ API系はCSRF除外
-            .csrf(csrf -> csrf.ignoringRequestMatchers("/api/**"))
+            // ✅ REST構成なのでCSRFは無効化
+            .csrf(csrf -> csrf.disable())
 
-            // ✅ アクセス制御（順番が超重要！）
+            // ✅ JWT構成なのでセッションは使わない
+            .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+
+            // ✅ 認可ルール設定
             .authorizeHttpRequests(auth -> auth
-                // 初期管理者登録API → 最優先で許可
+                // --- 誰でもアクセス可能な画面 ---
+                .requestMatchers(
+                    "/", "/login", "/logout",
+                    "/admin/login", "/admin/register", "/admin/dashboard",
+                    "/css/**", "/js/**", "/images/**"
+                ).permitAll()
+
+                // --- 公開API（認証不要） ---
+                .requestMatchers(HttpMethod.POST, "/api/login").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/admin/register").permitAll()
 
-                // ログインAPI → 許可
-                .requestMatchers("/api/login").permitAll()
-
-                // Swagger系 → 開発用で許可
+                // --- 開発用 Swagger ---
                 .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
 
-                // 静的リソース → 全許可
-                .requestMatchers("/css/**", "/js/**", "/images/**").permitAll()
-
-                // 管理画面HTML・ログインページなど
-                .requestMatchers("/", "/login", "/logout",
-                                 "/admin/login", "/admin/register", "/admin/register/**").permitAll()
-
-                // 管理者API
+                // --- 管理者API ---
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
 
-                // 社員API
-                .requestMatchers("/api/**").hasAnyRole("EMPLOYEE", "ADMIN")
+                // --- 社員API ---
+                .requestMatchers("/api/employee/**").hasAnyRole("EMPLOYEE", "ADMIN")
 
-                // それ以外 → 認証必須
+                // --- その他 ---
                 .anyRequest().authenticated()
             )
 
-            // ✅ API認証失敗時はリダイレクトではなく401を返す
+            // ✅ フォームログイン・ログアウトを無効化（JWT構成なので不要）
+            .formLogin(form -> form.disable())
+            .logout(logout -> logout.disable())
+
+            // ✅ API未認証時は401（リダイレクトなし）
             .exceptionHandling(ex -> ex
                 .defaultAuthenticationEntryPointFor(
                     new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED),
@@ -70,30 +75,7 @@ public class SecurityConfig {
                 )
             )
 
-            // ✅ フォームログイン（Web用）
-            .formLogin(form -> form
-                .loginPage("/login")
-                .loginProcessingUrl("/login")
-                .defaultSuccessUrl("/employee/dashboard", true)
-                .failureUrl("/login?error=true")
-                .permitAll()
-            )
-
-            // ✅ ログアウト
-            .logout(logout -> logout
-                .logoutUrl("/logout")
-                .logoutSuccessUrl("/login?logout=true")
-                .invalidateHttpSession(true)
-                .clearAuthentication(true)
-                .permitAll()
-            )
-
-            // ✅ セッションポリシー
-            .sessionManagement(session -> session
-                .sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED)
-            )
-
-            // ✅ 認証プロバイダ & JWTフィルタ
+            // ✅ JWTフィルター登録
             .authenticationProvider(authenticationProvider())
             .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 

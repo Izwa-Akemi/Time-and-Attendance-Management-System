@@ -4,19 +4,23 @@ import lombok.*;
 import java.time.Instant;
 
 /**
- * JWTログインAPIのレスポンス用DTO。
- * HTMLフォームログインでは使わず、/api/login のみで使用。
+ * JWTログインAPIのレスポンスDTO
  */
-@Getter @Setter
+@Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
 public class LoginResponse {
-    private String token;           // JWT
-    private String tokenType;       // "Bearer"
-    private Instant expiresAt;      // 有効期限（UTC）
-    private UserDto user;           // ログインユーザー情報
 
+    private String token;        // JWTトークン
+    private String tokenType;    // "Bearer"
+    private Instant expiresAt;   // 有効期限
+    private UserDto user;        // ログインユーザー情報
+
+    /**
+     * ✅ Builderでレスポンスを生成
+     */
     public static LoginResponse of(String token, Instant expiresAt, UserDto user) {
         return LoginResponse.builder()
                 .token(token)

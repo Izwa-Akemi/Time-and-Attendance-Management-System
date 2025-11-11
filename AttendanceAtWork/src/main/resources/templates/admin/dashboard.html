@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>管理者ダッシュボード</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 p-8">
+  <h1 class="text-2xl font-bold mb-4">管理者ダッシュボード</h1>
+  <p id="welcome" class="mb-4 text-gray-700"></p>
+  <div id="content" class="bg-white p-6 rounded-lg shadow"></div>
+
+  <script>
+    const token = localStorage.getItem("token");
+    const name = localStorage.getItem("userName");
+
+    if (!token) {
+      window.location.href = "/admin/login";
+    }
+
+    document.getElementById("welcome").textContent = `ようこそ、${name} さん`;
+
+    fetch("/api/admin/dashboard", {
+      headers: { "Authorization": `Bearer ${token}` }
+    })
+      .then(res => {
+        if (res.status === 401) throw new Error("認証切れ。再ログインしてください。");
+        return res.text();
+      })
+      .then(data => {
+        document.getElementById("content").textContent = data;
+      })
+      .catch(err => {
+        alert(err.message);
+        localStorage.clear();
+        window.location.href = "/admin/login";
+      });
+  </script>
+</body>
+</html>
