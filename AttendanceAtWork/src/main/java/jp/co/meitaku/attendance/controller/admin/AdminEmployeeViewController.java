@@ -5,6 +5,7 @@ import java.util.List;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 
 import jp.co.meitaku.attendance.model.entity.Department;
@@ -29,5 +30,13 @@ public class AdminEmployeeViewController {
     	List<Department> departments = departmentRepository.findAll();
         model.addAttribute("departments", departments);
         return "admin/employee/register";
+    }
+    @GetMapping("/list")
+    public String showEmployeeListPage() {
+        return "admin/employee/list";
+    }
+    @GetMapping("/detail/{userId}")
+    public String showEmployeeDetailPage(@PathVariable Integer userId) {
+        return "admin/employee/detail";
     }
 }

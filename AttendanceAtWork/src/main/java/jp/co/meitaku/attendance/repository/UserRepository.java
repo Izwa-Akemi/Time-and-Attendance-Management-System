@@ -24,4 +24,8 @@ public interface UserRepository extends JpaRepository<User, Integer> {
     // ✅ 社員一覧（部署も一緒に取得）
     @Query("SELECT u FROM User u LEFT JOIN FETCH u.department")
     List<User> findAllWithDepartment();
+    
+    @Query("SELECT u FROM User u LEFT JOIN FETCH u.department WHERE u.userId = :id")
+    Optional<User> findByIdWithDepartment(@Param("id") Integer id);
+
 }

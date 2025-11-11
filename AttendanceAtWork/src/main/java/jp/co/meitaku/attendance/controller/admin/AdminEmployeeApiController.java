@@ -48,4 +48,12 @@ public class AdminEmployeeApiController {
         List<UserDto> users = adminUserService.getAllUsers();
         return ResponseEntity.ok(users);
     }
+    
+    @GetMapping("/{id}")
+    public ResponseEntity<?> getEmployeeDetail(@PathVariable Integer id) {
+        return adminUserService.findById(id)
+            .map(UserDto::from)
+            .map(ResponseEntity::ok)
+            .orElse(ResponseEntity.notFound().build());
+    }
 }
