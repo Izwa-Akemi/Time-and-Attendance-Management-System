@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
@@ -91,5 +92,10 @@ public class AdminUserService {
             throw new IllegalArgumentException("対象のユーザーが存在しません。");
         }
         userRepository.deleteById(userId);
+    }
+    
+    @Transactional(readOnly = true)
+    public Optional<User> findById(Integer id) {
+        return userRepository.findByIdWithDepartment(id);
     }
 }
