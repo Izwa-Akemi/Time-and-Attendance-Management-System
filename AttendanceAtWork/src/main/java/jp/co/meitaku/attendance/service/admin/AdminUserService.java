@@ -52,17 +52,17 @@ public class AdminUserService {
     }
 
     /**
-     * ✅ 社員一覧取得
+     * ✅ 社員一覧取得（部署JOIN済み）
      */
     @Transactional(readOnly = true)
     public List<UserDto> getAllUsers() {
-        return userRepository.findAll().stream()
+        return userRepository.findAllWithDepartment().stream()
                 .map(UserDto::from)
                 .collect(Collectors.toList());
     }
 
     /**
-     * ✅ 部署別ユーザー取得
+     * ✅ 部署別ユーザー取得（fetch joinで安全に）
      */
     @Transactional(readOnly = true)
     public List<UserDto> getUsersByDepartment(Integer departmentId) {
