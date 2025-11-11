@@ -9,7 +9,7 @@
 <body class="bg-gray-100 flex items-center justify-center min-h-screen">
   <div class="bg-white p-8 rounded-xl shadow-lg w-full max-w-md">
     <h2 class="text-2xl font-bold text-center mb-6">管理者ログイン</h2>
-    <form id="loginForm" class="space-y-4">
+    <form id="loginForm" class="space-y-4" th:action="@{/admin/login}" method="post">
       <div>
         <label for="employeeNo" class="block text-sm font-medium text-gray-700 mb-1">社員番号</label>
         <input type="text" id="employeeNo" name="employeeNo" required
@@ -27,42 +27,9 @@
     </form>
     <div id="result" class="mt-4 text-center text-sm"></div>
   </div>
-
-  <script>
-    document.getElementById("loginForm").addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const data = {
-        employeeNo: e.target.employeeNo.value,
-        password: e.target.password.value
-      };
-
-      const resultEl = document.getElementById("result");
-      resultEl.textContent = "";
-
-      try {
-        const response = await fetch("/api/login", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(data)
-        });
-
-        if (response.ok) {
-          const resData = await response.json();
-          localStorage.setItem("token", resData.token);
-		  localStorage.setItem("userName", resData.user.name); // ← 修正！
-		  localStorage.setItem("role", resData.user.role);     // ← 修正！
-          resultEl.innerHTML = `<p class="text-green-600">✅ ようこそ、${resData.user.name} さん。ダッシュボードへ移動します...</p>`;
-          setTimeout(() => {
-            window.location.href = "/admin/dashboard";
-          }, 800);
-        } else {
-          const text = await response.text();
-          resultEl.innerHTML = `<p class="text-red-600">❌ ${text}</p>`;
-        }
-      } catch (err) {
-        resultEl.innerHTML = `<p class="text-red-600">❌ サーバー通信エラー</p>`;
-      }
-    });
-  </script>
+  <div class="mt-4 text-center text-sm text-gray-500">
+        <p th:if="${param.error}">❌ 社員番号またはパスワードが間違っています。</p>
+        <p th:if="${param.logout}">✅ ログアウトしました。</p>
+      </div>
 </body>
 </html>
