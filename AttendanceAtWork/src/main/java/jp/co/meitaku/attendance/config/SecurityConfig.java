@@ -19,55 +19,75 @@ import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 
+import jp.co.meitaku.attendance.service.common.CustomUserDetailsService;
+
 @Configuration
 @EnableWebSecurity
 @RequiredArgsConstructor
 public class SecurityConfig {
 
     private final JwtAuthFilter jwtAuthFilter;
-    private final UserDetailsService userDetailsService;
+    private final CustomUserDetailsService customUserDetailsService;
     private final PasswordEncoder passwordEncoder;
 
     @Bean
-    public SecurityFilterChain restApiSecurityFilterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-            // ✅ REST構成なのでCSRFは無効化
-            .csrf(csrf -> csrf.disable())
+            // ✅ CSRF：APIのみ無効、画面は保護
+            .csrf(csrf -> csrf
+                .ignoringRequestMatchers("/api/**")  // APIはCSRF除外
+            )
 
-            // ✅ JWT構成なのでセッションは使わない
-            .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+            // ✅ セッションを有効化（HTMLログイン用）
+            .sessionManagement(session -> session
+                .sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED)
+            )
 
             // ✅ 認可ルール設定
             .authorizeHttpRequests(auth -> auth
                 // --- 誰でもアクセス可能な画面 ---
-                .requestMatchers(
-                    "/", "/login", "/logout",
-                    "/admin/login", "/admin/register", "/admin/dashboard",
-                    "/css/**", "/js/**", "/images/**"
-                ).permitAll()
+                .requestMatchers("/", "/login", "/logout",
+                                 "/admin/login", "/admin/register",
+                                 "/css/**", "/js/**", "/images/**").permitAll()
 
-                // --- 公開API（認証不要） ---
+                // ✅ 管理者のHTML画面（セッション認証）
+                .requestMatchers("/admin/dashboard", "/admin/employee/**").hasRole("ADMIN")
+                // ✅ ログインAPI（JWT発行用）
                 .requestMatchers(HttpMethod.POST, "/api/login").permitAll()
+
+                // ✅ 管理者登録API（初期登録用）
                 .requestMatchers(HttpMethod.POST, "/api/admin/register").permitAll()
 
-                // --- 開発用 Swagger ---
-                .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
-
-                // --- 管理者API ---
+                // ✅ 管理者API（JWT認証）
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
 
-                // --- 社員API ---
-                .requestMatchers("/api/employee/**").hasAnyRole("EMPLOYEE", "ADMIN")
+        
 
-                // --- その他 ---
+                // --- その他は要認証 ---
                 .anyRequest().authenticated()
             )
 
-            // ✅ フォームログイン・ログアウトを無効化（JWT構成なので不要）
-            .formLogin(form -> form.disable())
-            .logout(logout -> logout.disable())
+            // ✅ フォームログイン（セッション認証）
+            .formLogin(form -> form
+                .loginPage("/admin/login")                // ログインページ
+                .loginProcessingUrl("/admin/login")       // POST送信先
+                .usernameParameter("employeeNo")  // ← これを追加！
+                .passwordParameter("password")    // ← 念のため追加！
+                .defaultSuccessUrl("/admin/dashboard", true) // 成功時
+                .failureUrl("/admin/login?error=true")    // 失敗時
+                .permitAll()
+            )
 
-            // ✅ API未認証時は401（リダイレクトなし）
+            // ✅ ログアウト設定（セッション終了）
+            .logout(logout -> logout
+                .logoutUrl("/admin/logout")
+                .logoutSuccessUrl("/admin/login?logout=true")
+                .invalidateHttpSession(true)
+                .clearAuthentication(true)
+                .permitAll()
+            )
+
+            // ✅ API未認証時は401を返す（HTMLはリダイレクト）
             .exceptionHandling(ex -> ex
                 .defaultAuthenticationEntryPointFor(
                     new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED),
@@ -75,7 +95,7 @@ public class SecurityConfig {
                 )
             )
 
-            // ✅ JWTフィルター登録
+            // ✅ JWTフィルター追加（API専用）
             .authenticationProvider(authenticationProvider())
             .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
@@ -85,7 +105,7 @@ public class SecurityConfig {
     @Bean
     public AuthenticationProvider authenticationProvider() {
         DaoAuthenticationProvider provider = new DaoAuthenticationProvider();
-        provider.setUserDetailsService(userDetailsService);
+        provider.setUserDetailsService(customUserDetailsService); // ✅ ここ！
         provider.setPasswordEncoder(passwordEncoder);
         return provider;
     }
