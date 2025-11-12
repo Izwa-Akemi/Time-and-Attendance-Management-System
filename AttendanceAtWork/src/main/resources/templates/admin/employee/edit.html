@@ -1,0 +1,159 @@
+
+<!DOCTYPE html>
+<html lang="ja" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>社員編集</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen">
+  <div class="max-w-3xl mx-auto p-6">
+    <div class="flex items-center justify-between mb-6">
+      <h1 class="text-2xl font-bold">✏️ 社員編集</h1>
+      <div>
+        <a href="/admin/employee/list" class="mr-2 px-4 py-2 rounded-lg bg-gray-200 hover:bg-gray-300">一覧へ</a>
+        <a href="/admin/dashboard" class="px-4 py-2 rounded-lg bg-gray-200 hover:bg-gray-300">ダッシュボード</a>
+      </div>
+    </div>
+
+    <div id="flash" class="hidden mb-4 p-3 rounded text-sm"></div>
+
+    <div class="bg-white rounded-xl shadow p-6">
+      <form id="editForm" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div>
+          <label class="block text-sm text-gray-600 mb-1">社員番号</label>
+          <input id="employeeNo" type="text" disabled
+                 class="w-full bg-gray-100 border border-gray-300 rounded px-3 py-2"/>
+        </div>
+        <div>
+          <label class="block text-sm text-gray-600 mb-1">氏名</label>
+          <input id="name" type="text" required
+                 class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"/>
+        </div>
+
+        <div>
+          <label class="block text-sm text-gray-600 mb-1">メール</label>
+          <input id="email" type="email"
+                 class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"/>
+        </div>
+
+        <div>
+          <label class="block text-sm text-gray-600 mb-1">部署</label>
+          <select id="departmentId"
+                  class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <option value="">（未設定）</option>
+            <option th:each="d : ${departments}" th:value="${d.departmentId}" th:text="${d.name}"></option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-sm text-gray-600 mb-1">入社日</label>
+          <input id="hireDate" type="date"
+                 class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"/>
+        </div>
+
+        <div>
+          <label class="block text-sm text-gray-600 mb-1">状態</label>
+          <select id="status"
+                  class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <option value="active">在職</option>
+            <option value="retired">退職</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-sm text-gray-600 mb-1">権限</label>
+          <select id="role"
+                  class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <option value="employee">社員</option>
+            <option value="admin">管理者</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-sm text-gray-600 mb-1">パスワード（変更時のみ）</label>
+          <input id="password" type="password" placeholder="変更する場合のみ入力"
+                 class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"/>
+        </div>
+
+        <div class="md:col-span-2 flex justify-end gap-3 mt-2">
+          <button type="button" id="cancelBtn"
+                  class="px-4 py-2 rounded-lg bg-gray-200 hover:bg-gray-300">キャンセル</button>
+          <button type="submit"
+                  class="px-5 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700">保存</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script th:inline="javascript">
+    const token = localStorage.getItem("token");
+    if (!token) { alert("認証が切れています。再ログインしてください。"); window.location.href="/admin/login"; }
+
+    // thymeleaf から受け取った userId
+    const userId = /*[[${userId}]]*/ 0;
+
+    const flash = (msg, ok=true) => {
+      const el = document.getElementById("flash");
+      el.className = `mb-4 p-3 rounded text-sm ${ok ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`;
+      el.textContent = msg;
+      el.classList.remove("hidden");
+      setTimeout(()=> el.classList.add("hidden"), 2500);
+    };
+
+    async function loadDetail() {
+      const res = await fetch(`/api/admin/users/${userId}`, { headers: { "Authorization": `Bearer ${token}` }});
+      if (!res.ok) { alert("読み込みに失敗しました。"); window.location.href="/admin/employee/list"; return; }
+      const u = await res.json();
+
+      document.getElementById("employeeNo").value = u.employeeNo || "";
+      document.getElementById("name").value       = u.name || "";
+      document.getElementById("email").value      = u.email || "";
+      document.getElementById("departmentId").value = u.departmentId || "";
+      document.getElementById("hireDate").value   = u.hireDate || "";
+      document.getElementById("status").value     = u.status || "active";
+      document.getElementById("role").value       = u.role || "employee";
+    }
+
+    document.getElementById("cancelBtn").addEventListener("click", () => {
+      window.location.href = "/admin/employee/list";
+    });
+
+    document.getElementById("editForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+
+      const body = {
+        name: document.getElementById("name").value,
+        email: document.getElementById("email").value || null,
+        departmentId: document.getElementById("departmentId").value ? Number(document.getElementById("departmentId").value) : null,
+        hireDate: document.getElementById("hireDate").value || null,
+        status: document.getElementById("status").value,
+        role: document.getElementById("role").value,
+      };
+      const pwd = document.getElementById("password").value;
+      if (pwd && pwd.length > 0) body.password = pwd;
+
+      const res = await fetch(`/api/admin/users/${userId}`, {
+        method: "PUT",
+        headers: { "Content-Type":"application/json", "Authorization": `Bearer ${token}` },
+        body: JSON.stringify(body)
+      });
+
+      if (res.ok) {
+        flash("更新しました。");
+        setTimeout(()=> window.location.href="/admin/employee/list", 900);
+      } else if (res.status === 401) {
+        alert("認証が切れました。再ログインしてください。");
+        localStorage.clear();
+        window.location.href="/admin/login";
+      } else {
+        const text = await res.text();
+        flash(`更新に失敗：${text}`, false);
+      }
+    });
+
+    loadDetail();
+  </script>
+</body>
+</html>
