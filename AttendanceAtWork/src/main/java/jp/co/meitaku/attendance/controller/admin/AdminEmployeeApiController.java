@@ -2,6 +2,7 @@ package jp.co.meitaku.attendance.controller.admin;
 
 import jp.co.meitaku.attendance.model.dto.UserDto;
 import jp.co.meitaku.attendance.model.form.UserRegisterForm;
+import jp.co.meitaku.attendance.model.form.UserUpdateForm;
 import jp.co.meitaku.attendance.service.admin.AdminUserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -56,4 +57,29 @@ public class AdminEmployeeApiController {
             .map(ResponseEntity::ok)
             .orElse(ResponseEntity.notFound().build());
     }
+    @PutMapping("/{id}")
+    public ResponseEntity<?> updateEmployee(@PathVariable Integer id,
+                                            @RequestBody UserUpdateForm form) {
+        try {
+            UserDto updated = adminUserService.updateUser(id, form);
+            return ResponseEntity.ok(updated);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body("更新中にエラーが発生しました。");
+        }
+    }
+    
+    @DeleteMapping("/{id}")
+    public ResponseEntity<?> deleteEmployee(@PathVariable Integer id) {
+        try {
+            adminUserService.deleteUser(id); // ユーザー削除処理
+            return ResponseEntity.ok().build();
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body("削除中にエラーが発生しました。");
+        }
+    }
+    
 }

@@ -4,6 +4,7 @@ import jp.co.meitaku.attendance.model.dto.UserDto;
 import jp.co.meitaku.attendance.model.entity.Department;
 import jp.co.meitaku.attendance.model.entity.User;
 import jp.co.meitaku.attendance.model.form.UserRegisterForm;
+import jp.co.meitaku.attendance.model.form.UserUpdateForm;
 import jp.co.meitaku.attendance.repository.DepartmentRepository;
 import jp.co.meitaku.attendance.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -98,4 +99,32 @@ public class AdminUserService {
     public Optional<User> findById(Integer id) {
         return userRepository.findByIdWithDepartment(id);
     }
+    @Transactional
+    public UserDto updateUser(Integer id, UserUpdateForm form) {
+        User user = userRepository.findByIdWithDepartment(id)
+            .orElseThrow(() -> new IllegalArgumentException("対象ユーザーが存在しません。"));
+
+        if (form.getName() != null) user.setName(form.getName());
+        if (form.getEmail() != null) user.setEmail(form.getEmail());
+        if (form.getHireDate() != null) user.setHireDate(form.getHireDate());
+        if (form.getStatus() != null) user.setStatus(form.getStatus());
+        if (form.getRole() != null) user.setRole(form.getRole());
+
+        // 部署更新
+        if (form.getDepartmentId() != null) {
+            Department dept = departmentRepository.findById(form.getDepartmentId())
+                .orElseThrow(() -> new IllegalArgumentException("指定の部署が存在しません。"));
+            user.setDepartment(dept);
+        }
+
+        // パスワード更新（任意）
+        if (form.getPassword() != null && !form.getPassword().isBlank()) {
+            user.setPasswordHash(passwordEncoder.encode(form.getPassword()));
+        }
+
+        return UserDto.from(userRepository.save(user));
+    }
+
+    
+    
 }

@@ -39,4 +39,12 @@ public class AdminEmployeeViewController {
     public String showEmployeeDetailPage(@PathVariable Integer userId) {
         return "admin/employee/detail";
     }
+    @GetMapping("/edit/{id}")
+    public String showEmployeeEditPage(@PathVariable Integer id, Model model) {
+        // セレクト用：部署一覧
+        model.addAttribute("departments", departmentRepository.findAll());
+        // 画面側JSで /api/admin/users/{id} を叩いて初期値を入れるので、ここではthymeleafに id だけ渡す
+        model.addAttribute("userId", id);
+        return "admin/employee/edit";
+    }
 }
