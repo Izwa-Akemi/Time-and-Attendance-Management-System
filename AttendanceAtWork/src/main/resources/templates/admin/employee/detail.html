@@ -55,12 +55,21 @@
   </div>
 
   <script>
+    /* -----------------------------------------
+       🔑 JWT（あれば使う）※無くてもHTMLは閲覧可能
+    ----------------------------------------- */
     const token = localStorage.getItem("token");
-    if (!token) {
-      alert("ログイン情報がありません。再ログインしてください。");
-      window.location.href = "/admin/login";
+
+    // APIヘッダ作成（token がある時だけ Authorization を付与）
+    function authHeaders(extra = {}) {
+      const headers = { ...extra };
+      if (token) headers["Authorization"] = `Bearer ${token}`;
+      return headers;
     }
 
+    /* -----------------------------------------
+       📌 必要なDOM要素
+    ----------------------------------------- */
     const userId = window.location.pathname.split("/").pop();
     const detailDiv = document.getElementById("employeeDetail");
     const modal = document.getElementById("deleteModal");
@@ -68,11 +77,21 @@
 
     let employeeData = null;
 
-    // ✅ 詳細データ読み込み
+    /* -----------------------------------------
+       📥 社員詳細データ読み込み
+    ----------------------------------------- */
     async function loadEmployeeDetail() {
+
       const res = await fetch(`/api/admin/users/${userId}`, {
-        headers: { "Authorization": `Bearer ${token}` }
+        headers: authHeaders()
       });
+
+      // 🔐 JWT期限切れ or セッション切れ
+      if (res.status === 401) {
+        alert("認証の有効期限が切れています。再ログインしてください。");
+        localStorage.clear();
+        return window.location.href = "/admin/login";
+      }
 
       if (!res.ok) {
         detailDiv.innerHTML = `<p class='text-red-600'>❌ 社員情報を取得できませんでした。</p>`;
@@ -89,49 +108,72 @@
           <p><strong class="text-gray-900">部署：</strong> ${u.departmentName || "-"}</p>
           <p><strong class="text-gray-900">メール：</strong> ${u.email || "-"}</p>
           <p><strong class="text-gray-900">入社日：</strong> ${u.hireDate || "-"}</p>
-          <p><strong class="text-gray-900">状態：</strong> 
-            <span class="px-2 py-1 rounded-full text-xs font-semibold ${u.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-600'}">
+          <p><strong class="text-gray-900">状態：</strong>
+            <span class="px-2 py-1 rounded-full text-xs font-semibold 
+              ${u.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-600'}">
               ${u.status === 'active' ? '在職' : '退職'}
             </span>
           </p>
           <p><strong class="text-gray-900">権限：</strong> ${u.role}</p>
-          <p><strong class="text-gray-900">作成日時：</strong> ${u.createdAt ? u.createdAt.replace('T',' ').split('.')[0] : '-'}</p>
+          <p><strong class="text-gray-900">作成日時：</strong> 
+            ${u.createdAt ? u.createdAt.replace('T', ' ').split('.')[0] : '-'}
+          </p>
         </div>
       `;
     }
 
-    // ✅ 編集ボタン
+    /* -----------------------------------------
+       ✏️ 編集ボタン
+    ----------------------------------------- */
     document.getElementById("editBtn").addEventListener("click", () => {
       window.location.href = `/admin/employee/edit/${userId}`;
     });
 
-    // ✅ 削除ボタン
+    /* -----------------------------------------
+       🗑 削除ボタン → モーダル表示
+    ----------------------------------------- */
     document.getElementById("deleteBtn").addEventListener("click", () => {
       deleteName.textContent = employeeData ? employeeData.name : '';
       modal.classList.remove("hidden");
       modal.classList.add("flex");
     });
 
-    // ✅ 削除キャンセル
+    /* -----------------------------------------
+       ❌ 削除キャンセル
+    ----------------------------------------- */
     document.getElementById("cancelDelete").addEventListener("click", () => {
       modal.classList.add("hidden");
     });
 
-    // ✅ 削除実行
+    /* -----------------------------------------
+       ❗ 削除実行
+    ----------------------------------------- */
     document.getElementById("confirmDelete").addEventListener("click", async () => {
+
       const res = await fetch(`/api/admin/users/${userId}`, {
         method: "DELETE",
-        headers: { "Authorization": `Bearer ${token}` }
+        headers: authHeaders()
       });
+
+      if (res.status === 401) {
+        alert("認証の有効期限が切れています。再ログインしてください。");
+        localStorage.clear();
+        return window.location.href = "/admin/login";
+      }
+
       if (res.ok) {
         alert("削除しました。");
-        window.location.href = "/admin/employee/list";
-      } else {
-        alert("削除に失敗しました。");
+        return window.location.href = "/admin/employee/list";
       }
+
+      alert("削除に失敗しました。");
     });
 
+    /* -----------------------------------------
+       📌 初期化
+    ----------------------------------------- */
     loadEmployeeDetail();
+
   </script>
 </body>
 </html>

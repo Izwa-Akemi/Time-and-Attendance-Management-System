@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>勤怠一覧 - 管理者ページ</title>
+	<script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body class="bg-gray-100 min-h-screen font-sans">
+
+	<div class="container mx-auto px-6 py-8">
+
+		<!-- ヘッダー -->
+		<div class="flex justify-between items-center mb-8">
+			<h1 class="text-3xl font-bold text-gray-800">🕒 勤怠一覧</h1>
+			<div>
+				<button onclick="window.location.href='/admin/dashboard'"
+					class="mr-2 bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600">⬅ ダッシュボード</button>
+			</div>
+		</div>
+
+		<!-- フィルタ -->
+		<div class="bg-white p-4 rounded-lg shadow mb-6 grid grid-cols-1 md:grid-cols-4 gap-4">
+
+			<!-- 社員フィルタ -->
+			<div>
+				<label class="block text-sm font-semibold mb-1">社員</label>
+				<select id="userFilter" class="w-full border rounded-lg px-3 py-2">
+					<option value="">すべて</option>
+				</select>
+			</div>
+
+			<!-- 部署フィルタ -->
+			<div>
+				<label class="block text-sm font-semibold mb-1">部署</label>
+				<select id="departmentFilter" class="w-full border rounded-lg px-3 py-2">
+					<option value="">（部署を選択）</option>
+
+
+					<option th:each="dept : ${departments}" th:value="${dept.departmentId}" th:text="${dept.name}">
+					</option>
+				</select>
+			</div>
+
+			<!-- 日付（開始） -->
+			<div>
+				<label class="block text-sm font-semibold mb-1">開始日</label>
+				<input type="date" id="startDate" class="w-full border rounded-lg px-3 py-2">
+			</div>
+
+			<!-- 日付（終了） -->
+			<div>
+				<label class="block text-sm font-semibold mb-1">終了日</label>
+				<input type="date" id="endDate" class="w-full border rounded-lg px-3 py-2">
+			</div>
+
+			<div class="md:col-span-4 flex gap-3 mt-2">
+				<button id="filterBtn" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">🔍
+					絞り込み</button>
+				<button id="resetBtn"
+					class="bg-gray-400 text-white px-4 py-2 rounded-lg hover:bg-gray-500">リセット</button>
+
+				<!-- 右側：CSV & 切替 -->
+				<div class="ml-auto flex gap-3">
+					<button id="csvBtn" class="bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700">
+						CSV ダウンロード
+					</button>
+
+					<select id="rangeSwitch" class="border rounded-lg px-3 py-2">
+						<option value="daily">日別</option>
+						<option value="weekly">週別</option>
+						<option value="monthly">月別</option>
+					</select>
+				</div>
+			</div>
+		</div>
+
+		<!-- 一覧テーブル -->
+		<div class="overflow-x-auto bg-white rounded-xl shadow">
+			<table class="min-w-full divide-y divide-gray-200">
+				<thead class="bg-blue-50">
+					<tr>
+						<th class="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">社員番号</th>
+						<th class="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">氏名</th>
+						<th class="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">出勤</th>
+						<th class="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">退勤</th>
+						<th class="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">勤務時間</th>
+						<th class="px-6 py-3 text-center text-xs font-semibold text-gray-600 uppercase">操作</th>
+					</tr>
+				</thead>
+				<tbody id="attendanceTable" class="divide-y divide-gray-100"></tbody>
+			</table>
+		</div>
+
+		<p id="noResult" class="text-center text-gray-500 mt-6 hidden">該当データがありません。</p>
+	</div>
+	<script>
+	document.addEventListener("DOMContentLoaded", () => {
+
+	  /* -----------------------------------------
+	     🔑 JWT（あれば使う）
+	  ----------------------------------------- */
+	  const token = localStorage.getItem("token");
+
+	  function authHeaders(extra = {}) {
+	    const headers = { ...extra };
+	    if (token) headers["Authorization"] = `Bearer ${token}`;
+	    return headers;
+	  }
+
+	  /* -----------------------------------------
+	     📌 DOM 取得（勤怠一覧ページ用）
+	  ----------------------------------------- */
+	  const userFilter = document.getElementById("userFilter");
+	  const departmentFilter = document.getElementById("departmentFilter");
+	  const startDateInput = document.getElementById("startDate");
+	  const endDateInput = document.getElementById("endDate");
+	  const filterBtn = document.getElementById("filterBtn");
+	  const resetBtn = document.getElementById("resetBtn");
+	  const csvBtn = document.getElementById("csvBtn");
+	  const rangeSwitch = document.getElementById("rangeSwitch");
+	  const tableBody = document.getElementById("attendanceTable");
+	  const noResult = document.getElementById("noResult");
+
+
+	  /* -----------------------------------------
+	     ★ NEW! ① ユーザーフィルタの初期化
+	     /api/admin/users を叩いて社員一覧を入れる
+	  ----------------------------------------- */
+	  async function loadUserFilter() {
+	    const res = await fetch("/api/admin/users", {
+	      headers: authHeaders()
+	    });
+
+	    if (!res.ok) {
+	      console.error("社員リストの取得に失敗");
+	      return;
+	    }
+
+	    const users = await res.json();
+
+	    // セレクトボックス初期化
+	    userFilter.innerHTML = `<option value="">すべて</option>`;
+
+	    users.forEach(u => {
+	      const opt = document.createElement("option");
+	      opt.value = u.userId;
+	      opt.textContent = `${u.employeeNo} - ${u.name}`;
+	      userFilter.appendChild(opt);
+	    });
+	  }
+
+
+	  /* -----------------------------------------
+	     🧮 クエリパラメータ生成
+	  ----------------------------------------- */
+	  function buildQuery() {
+	    const params = new URLSearchParams();
+
+	    if (userFilter.value) params.append("userId", userFilter.value);
+	    if (departmentFilter.value) params.append("departmentId", departmentFilter.value);
+	    if (startDateInput.value) params.append("startDate", startDateInput.value);
+	    if (endDateInput.value) params.append("endDate", endDateInput.value);
+
+	    const query = params.toString();
+	    return query ? "?" + query : "";
+	  }
+
+
+	  /* -----------------------------------------
+	     📥 勤怠一覧ロード
+	  ----------------------------------------- */
+	  async function loadAttendance() {
+	    const query = buildQuery();
+
+	    const res = await fetch("/api/admin/attendances" + query, {
+	      headers: authHeaders()
+	    });
+
+	    if (res.status === 401) {
+	      alert("認証の有効期限が切れています。再ログインしてください。");
+	      localStorage.clear();
+	      window.location.href = "/admin/login";
+	      return;
+	    }
+
+	    if (!res.ok) {
+	      alert("勤怠データの取得に失敗しました。");
+	      return;
+	    }
+
+	    const data = await res.json();
+	    renderTable(data);
+	  }
+
+
+	  /* -----------------------------------------
+	     📝 テーブル描画
+	  ----------------------------------------- */
+	  function renderTable(data) {
+	    tableBody.innerHTML = "";
+
+	    if (!data || data.length === 0) {
+	      noResult.classList.remove("hidden");
+	      return;
+	    }
+	    noResult.classList.add("hidden");
+
+	    data.forEach(a => {
+	      const totalSec = a.totalWorkSeconds ?? 0;
+	      const h = Math.floor(totalSec / 3600);
+	      const m = Math.floor((totalSec % 3600) / 60);
+
+	      const tr = document.createElement("tr");
+	      tr.classList.add("hover:bg-blue-50");
+
+	      tr.innerHTML = `
+	        <td class="px-6 py-4 text-sm text-gray-700">${a.employeeNo ?? "-"}</td>
+	        <td class="px-6 py-4 text-sm text-gray-800">${a.userName ?? "-"}</td>
+	        <td class="px-6 py-4 text-sm text-gray-600">${a.clockIn ?? "-"}</td>
+	        <td class="px-6 py-4 text-sm text-gray-600">${a.clockOut ?? "-"}</td>
+	        <td class="px-6 py-4 text-sm text-gray-600">
+	          ${totalSec ? `${h}時間 ${m}分` : "-"}
+	        </td>
+	        <td class="px-6 py-4 text-sm text-center">
+	          <button
+	            class="text-blue-600 hover:text-blue-800 underline"
+	            onclick="window.location.href='/admin/attendances/${a.attendanceId}/edit'">
+	            編集
+	          </button>
+	        </td>
+	      `;
+	      tableBody.appendChild(tr);
+	    });
+	  }
+
+
+	  /* -----------------------------------------
+	     🔍 絞り込みボタン
+	  ----------------------------------------- */
+	  filterBtn.addEventListener("click", loadAttendance);
+
+	  /* -----------------------------------------
+	     🔄 リセット
+	  ----------------------------------------- */
+	  resetBtn.addEventListener("click", () => {
+	    userFilter.value = "";
+	    departmentFilter.value = "";
+	    startDateInput.value = "";
+	    endDateInput.value = "";
+	    rangeSwitch.value = "daily";
+	    loadAttendance();
+	  });
+
+	  /* -----------------------------------------
+	     📤 CSV ダウンロード
+	  ----------------------------------------- */
+	  csvBtn.addEventListener("click", () => {
+	    const query = buildQuery();
+	    window.location.href = "/api/admin/attendances/csv" + query;
+	  });
+
+	  /* -----------------------------------------
+	     🕒 初期ロード（★ユーザー一覧 → 勤怠一覧）
+	  ----------------------------------------- */
+	  loadUserFilter().then(loadAttendance);
+
+	});
+	</script>
+
+
+
+
+</body>
+
+</html>

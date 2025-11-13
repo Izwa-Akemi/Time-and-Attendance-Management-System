@@ -19,6 +19,8 @@ public class AttendanceService {
 
     private final AttendanceRepository attendanceRepository;
     private final UserRepository userRepository;
+    
+    
 
     /**
      * ✅ 出勤打刻

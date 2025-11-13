@@ -29,6 +29,7 @@ public class SecurityConfig {
     private final JwtAuthFilter jwtAuthFilter;
     private final CustomUserDetailsService customUserDetailsService;
     private final PasswordEncoder passwordEncoder;
+    private final LoginSuccessHandler loginSuccessHandler;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -73,6 +74,7 @@ public class SecurityConfig {
                 .loginProcessingUrl("/admin/login")       // POST送信先
                 .usernameParameter("employeeNo")  // ← これを追加！
                 .passwordParameter("password")    // ← 念のため追加！
+                .successHandler(loginSuccessHandler) // ✅ ここがポイント！
                 .defaultSuccessUrl("/admin/dashboard", true) // 成功時
                 .failureUrl("/admin/login?error=true")    // 失敗時
                 .permitAll()
