@@ -23,6 +23,11 @@
               class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition">
         ＋ 社員登録
       </button>
+	  <!-- 勤怠一覧ボタン ★追加 -->
+	  <button id="attendanceBtn"
+	          class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition">
+	    🕒 勤怠一覧
+	  </button>
     </div>
   </div>
 
@@ -33,39 +38,110 @@
 
   <!-- コンテンツ領域 -->
   <div id="content" class="bg-white p-6 rounded-lg shadow">
-    <p class="text-gray-500">ようこそ！ここにダッシュボード内容を表示します。</p>
+    <h2 class="text-xl font-semibold text-gray-800 mb-4">最新の勤怠情報</h2>
+
+    <!-- 勤怠データテーブル -->
+    <table class="min-w-full divide-y divide-gray-200">
+      <thead class="bg-blue-50">
+        <tr>
+          <th class="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">社員番号</th>
+          <th class="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">氏名</th>
+          <th class="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">出勤時間</th>
+          <th class="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">退勤時間</th>
+          <th class="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">勤務時間</th>
+          <th class="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">操作</th>
+        </tr>
+      </thead>
+      <tbody id="attendanceTable" class="divide-y divide-gray-100">
+        <!-- 勤怠データをここに追加 -->
+      </tbody>
+    </table>
   </div>
 
   <script>
-    // ✅ 社員登録ボタンクリックで登録画面へ
+    // ---------- ① URLパラメータから token を取得して localStorage に保存 ----------
+    const params = new URLSearchParams(window.location.search);
+    const tokenFromUrl = params.get("token");
+
+    if (tokenFromUrl) {
+      // ログイン成功時に付いてくる token を保存
+      localStorage.setItem("token", tokenFromUrl);
+
+      // URLを /admin/dashboard にクリーンアップ（?token=... を消す）
+      window.history.replaceState({}, document.title, "/admin/dashboard");
+    }
+
+    // localStorage に保存されている（かもしれない）JWT
+    const token = localStorage.getItem("token");
+
+    // ---------- ② DOM取得 ----------
+    const tableBody = document.getElementById("attendanceTable");
+
+    // ---------- ③ 勤怠データ読み込み ----------
+    async function loadAttendance() {
+      // ヘッダーは「token があれば付与する」くらいのゆるい運用にする
+      const headers = {};
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+
+      const res = await fetch("/api/admin/dashboard", {
+        headers: headers
+      });
+
+      if (!res.ok) {
+        alert("データ取得に失敗しました。再ログインしてください。");
+        // ここでセッション切れの可能性が高いのでログアウト処理
+        localStorage.removeItem("token");
+        window.location.href = "/admin/login";
+        return;
+      }
+
+      const attendances = await res.json();
+      renderTable(attendances);
+    }
+
+    function renderTable(data) {
+      tableBody.innerHTML = "";
+      data.forEach(a => {
+        const tr = document.createElement("tr");
+        const total = a.totalWorkSeconds ?? null;
+        const workTimeText =
+          total != null
+            ? Math.floor(total / 3600) + "時間 " + Math.floor((total % 3600) / 60) + "分"
+            : "-";
+
+        tr.innerHTML = `
+          <td class="px-6 py-4 text-sm text-gray-700">${a.employeeNo || "-"}</td>
+          <td class="px-6 py-4 text-sm text-gray-700">${a.userName || "-"}</td>
+          <td class="px-6 py-4 text-sm text-gray-600">${a.clockIn || "-"}</td>
+          <td class="px-6 py-4 text-sm text-gray-600">${a.clockOut || "-"}</td>
+          <td class="px-6 py-4 text-sm text-gray-600">${workTimeText}</td>
+          <td class="px-6 py-4 text-sm text-blue-600">
+            <a href="/admin/attendances/${a.attendanceId}/edit" class="hover:underline">編集</a>
+          </td>
+        `;
+        tableBody.appendChild(tr);
+      });
+    }
+
+    // ---------- ④ 画面上部のボタンイベント ----------
+    // 社員登録ボタン → 登録画面
     document.getElementById("registerBtn").addEventListener("click", () => {
       window.location.href = "/admin/employee/register";
     });
 
-    // ✅ 社員一覧ボタンクリックで一覧画面へ
+    // 社員一覧ボタン → 一覧画面
     document.getElementById("listBtn").addEventListener("click", () => {
       window.location.href = "/admin/employee/list";
     });
 
-    // （※もしAPI連携があるならこのfetch部分は残してOK）
-    const token = localStorage.getItem("token");
-    if (token) {
-      fetch("/api/admin/dashboard", {
-        headers: { "Authorization": `Bearer ${token}` }
-      })
-        .then(res => {
-          if (res.status === 401) throw new Error("認証切れ。再ログインしてください。");
-          return res.text();
-        })
-        .then(data => {
-          document.getElementById("content").textContent = data;
-        })
-        .catch(err => {
-          alert(err.message);
-          localStorage.clear();
-          window.location.href = "/admin/login";
-        });
-    }
+	// 勤怠一覧ボタン → 勤怠一覧画面へ ★追加
+	document.getElementById("attendanceBtn").addEventListener("click", () => {
+	  window.location.href = "/admin/attendances";
+	});
+    // ---------- ⑤ 初期ロード ----------
+    loadAttendance();
   </script>
 </body>
 </html>

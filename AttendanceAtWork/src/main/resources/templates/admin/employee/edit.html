@@ -88,23 +88,55 @@
   </div>
 
   <script th:inline="javascript">
-    const token = localStorage.getItem("token");
-    if (!token) { alert("認証が切れています。再ログインしてください。"); window.location.href="/admin/login"; }
 
-    // thymeleaf から受け取った userId
+    /* -----------------------------------------
+       🔑 JWT（あれば使用）※無くてもHTMLは閲覧可能
+    ----------------------------------------- */
+    const token = localStorage.getItem("token");
+
+    // API用ヘッダ生成関数（JWTがある時だけ付ける）
+    function authHeaders(extra = {}) {
+      const headers = { ...extra };
+      if (token) headers["Authorization"] = `Bearer ${token}`;
+      return headers;
+    }
+
+    /* -----------------------------------------
+       🔢 thymeleaf から userId 取得
+    ----------------------------------------- */
     const userId = /*[[${userId}]]*/ 0;
 
-    const flash = (msg, ok=true) => {
+    /* -----------------------------------------
+       💬 flash メッセージ
+    ----------------------------------------- */
+    const flash = (msg, ok = true) => {
       const el = document.getElementById("flash");
-      el.className = `mb-4 p-3 rounded text-sm ${ok ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`;
+      el.className =
+        `mb-4 p-3 rounded text-sm ${ok ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`;
       el.textContent = msg;
       el.classList.remove("hidden");
-      setTimeout(()=> el.classList.add("hidden"), 2500);
+      setTimeout(() => el.classList.add("hidden"), 2500);
     };
 
+    /* -----------------------------------------
+       📥 社員詳細読み込み
+    ----------------------------------------- */
     async function loadDetail() {
-      const res = await fetch(`/api/admin/users/${userId}`, { headers: { "Authorization": `Bearer ${token}` }});
-      if (!res.ok) { alert("読み込みに失敗しました。"); window.location.href="/admin/employee/list"; return; }
+      const res = await fetch(`/api/admin/users/${userId}`, {
+        headers: authHeaders()
+      });
+
+      if (res.status === 401) {
+        alert("認証の有効期限が切れています。再ログインしてください。");
+        localStorage.clear();
+        return window.location.href = "/admin/login";
+      }
+
+      if (!res.ok) {
+        alert("社員情報の読み込みに失敗しました。");
+        return window.location.href = "/admin/employee/list";
+      }
+
       const u = await res.json();
 
       document.getElementById("employeeNo").value = u.employeeNo || "";
@@ -116,44 +148,59 @@
       document.getElementById("role").value       = u.role || "employee";
     }
 
+    /* -----------------------------------------
+       🔙 キャンセル
+    ----------------------------------------- */
     document.getElementById("cancelBtn").addEventListener("click", () => {
       window.location.href = "/admin/employee/list";
     });
 
+    /* -----------------------------------------
+       💾 更新処理（PUT）
+    ----------------------------------------- */
     document.getElementById("editForm").addEventListener("submit", async (e) => {
       e.preventDefault();
 
       const body = {
         name: document.getElementById("name").value,
         email: document.getElementById("email").value || null,
-        departmentId: document.getElementById("departmentId").value ? Number(document.getElementById("departmentId").value) : null,
+        departmentId: document.getElementById("departmentId").value
+          ? Number(document.getElementById("departmentId").value)
+          : null,
         hireDate: document.getElementById("hireDate").value || null,
         status: document.getElementById("status").value,
         role: document.getElementById("role").value,
       };
+
       const pwd = document.getElementById("password").value;
-      if (pwd && pwd.length > 0) body.password = pwd;
+      if (pwd) body.password = pwd;
 
       const res = await fetch(`/api/admin/users/${userId}`, {
         method: "PUT",
-        headers: { "Content-Type":"application/json", "Authorization": `Bearer ${token}` },
+        headers: authHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify(body)
       });
 
+      if (res.status === 401) {
+        alert("認証の有効期限が切れています。再ログインしてください。");
+        localStorage.clear();
+        return window.location.href = "/admin/login";
+      }
+
       if (res.ok) {
         flash("更新しました。");
-        setTimeout(()=> window.location.href="/admin/employee/list", 900);
-      } else if (res.status === 401) {
-        alert("認証が切れました。再ログインしてください。");
-        localStorage.clear();
-        window.location.href="/admin/login";
-      } else {
-        const text = await res.text();
-        flash(`更新に失敗：${text}`, false);
+        return setTimeout(() => window.location.href = "/admin/employee/list", 900);
       }
+
+      const text = await res.text();
+      flash(`更新に失敗：${text}`, false);
     });
 
+    /* -----------------------------------------
+       📌 初期ロード
+    ----------------------------------------- */
     loadDetail();
+
   </script>
 </body>
 </html>

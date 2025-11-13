@@ -68,27 +68,34 @@
   </div>
 
   <script>
+    /* --------------------------------
+       ✅ JWTトークン（あれば利用する）
+    --------------------------------*/
     const token = localStorage.getItem("token");
-    if (!token) {
-      alert("ログイン情報がありません。再ログインしてください。");
-      window.location.href = "/admin/login";
-    }
 
+    /* --------------------------------
+       DOM取得
+    --------------------------------*/
     const tableBody = document.getElementById("employeeTable");
     const noResult = document.getElementById("noResult");
     const modal = document.getElementById("deleteModal");
     const deleteName = document.getElementById("deleteName");
     let deleteTargetId = null;
 
-    // ✅ 社員一覧を取得して描画
+    /* --------------------------------
+       ✅ 社員一覧を取得
+    --------------------------------*/
     async function loadEmployees() {
-      const res = await fetch("/api/admin/users", {
-        headers: { "Authorization": `Bearer ${token}` }
-      });
+      const headers = {};
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+
+      const res = await fetch("/api/admin/users", { headers });
 
       if (!res.ok) {
         alert("データ取得に失敗しました。再ログインしてください。");
-        localStorage.clear();
+        localStorage.removeItem("token");
         window.location.href = "/admin/login";
         return;
       }
@@ -96,6 +103,7 @@
       const users = await res.json();
       renderTable(users);
 
+      // 検索機能
       document.getElementById("searchBtn").addEventListener("click", () => {
         const keyword = document.getElementById("searchInput").value.toLowerCase();
         const filtered = users.filter(u =>
@@ -106,9 +114,12 @@
       });
     }
 
-    // ✅ テーブル描画
+    /* --------------------------------
+       ✅ テーブル描画
+    --------------------------------*/
     function renderTable(data) {
       tableBody.innerHTML = "";
+
       if (data.length === 0) {
         noResult.classList.remove("hidden");
         return;
@@ -119,9 +130,8 @@
         const tr = document.createElement("tr");
         tr.classList.add("hover:bg-blue-50", "cursor-pointer");
 
-        // ✅ 行クリック → 詳細ページへ
         tr.addEventListener("click", (e) => {
-          if (!e.target.closest(".action-btn")) { // 操作ボタンは除外
+          if (!e.target.closest(".action-btn")) {
             window.location.href = `/admin/employee/detail/${u.userId}`;
           }
         });
@@ -132,48 +142,58 @@
           <td class="px-6 py-4 text-sm text-gray-600">${u.departmentName || "-"}</td>
           <td class="px-6 py-4 text-sm text-gray-600">${u.hireDate || "-"}</td>
           <td class="px-6 py-4 text-sm">
-            <span class="px-2 py-1 rounded-full text-xs font-semibold ${u.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-600'}">
-              ${u.status === 'active' ? '在職' : '退職'}
+            <span class="px-2 py-1 rounded-full text-xs font-semibold
+              ${u.status === "active" ? "bg-green-100 text-green-700" : "bg-gray-200 text-gray-600"}">
+              ${u.status === "active" ? "在職" : "退職"}
             </span>
           </td>
           <td class="px-6 py-4 text-sm text-center">
             <button class="action-btn text-blue-600 hover:text-blue-800 font-semibold mr-3"
-                    onclick="editUser(event, ${u.userId})">編集</button>
+              onclick="editUser(event, ${u.userId})">編集</button>
             <button class="action-btn text-red-600 hover:text-red-800 font-semibold"
-                    onclick="confirmDeleteUser(event, ${u.userId}, '${u.name}')">削除</button>
+              onclick="confirmDeleteUser(event, ${u.userId}, '${u.name}')">削除</button>
           </td>
         `;
         tableBody.appendChild(tr);
       });
     }
 
-    // ✅ 編集
+    /* --------------------------------
+       編集ボタン
+    --------------------------------*/
     function editUser(event, userId) {
       event.stopPropagation();
       window.location.href = `/admin/employee/edit/${userId}`;
     }
 
-    // ✅ 削除確認モーダル表示
+    /* --------------------------------
+       削除モーダル
+    --------------------------------*/
     function confirmDeleteUser(event, userId, name) {
       event.stopPropagation();
       deleteTargetId = userId;
       deleteName.textContent = name;
-      modal.classList.remove("hidden", "opacity-0");
+      modal.classList.remove("hidden");
       modal.classList.add("flex");
     }
 
-    // ✅ 削除キャンセル
     document.getElementById("cancelDelete").addEventListener("click", () => {
       modal.classList.add("hidden");
     });
 
-    // ✅ 削除確定
     document.getElementById("confirmDelete").addEventListener("click", async () => {
       if (!deleteTargetId) return;
+
+      const headers = {};
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+
       const res = await fetch(`/api/admin/users/${deleteTargetId}`, {
         method: "DELETE",
-        headers: { "Authorization": `Bearer ${token}` }
+        headers
       });
+
       if (res.ok) {
         alert("削除しました。");
         modal.classList.add("hidden");
@@ -183,6 +203,9 @@
       }
     });
 
+    /* --------------------------------
+       初回ロード
+    --------------------------------*/
     loadEmployees();
   </script>
 </body>

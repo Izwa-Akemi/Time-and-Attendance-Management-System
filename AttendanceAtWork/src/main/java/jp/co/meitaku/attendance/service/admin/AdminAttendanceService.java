@@ -20,6 +20,48 @@ public class AdminAttendanceService {
     private final UserRepository userRepository;
 
     /**
+     * ================================================
+     * ✅ 管理者用：フィルター付き 勤怠一覧（新規追加）
+     * ================================================
+     */
+    @Transactional(readOnly = true)
+    public List<AttendanceDto> getAttendanceList(
+            Integer userId,
+            Integer departmentId,
+            LocalDate startDate,
+            LocalDate endDate
+    ) {
+        List<Attendance> list = attendanceRepository.searchForAdmin(
+                userId,
+                departmentId,
+                startDate,
+                endDate
+        );
+
+        return list.stream()
+                .map(AttendanceDto::from)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * ✅ 勤怠データを社員・部署・期間でフィルタリングして取得
+     */
+    @Transactional(readOnly = true)
+    public List<AttendanceDto> getFilteredAttendance(Integer departmentId, String employeeName, LocalDate startDate, LocalDate endDate) {
+        // 部署・社員名・期間で絞り込み
+        List<Attendance> attendances = attendanceRepository.findAll().stream()
+                .filter(attendance -> (departmentId == null || attendance.getUser().getDepartment().getDepartmentId().equals(departmentId)) &&
+                        (employeeName == null || attendance.getUser().getName().contains(employeeName)) &&
+                        (startDate == null || !attendance.getWorkDate().isBefore(startDate)) &&
+                        (endDate == null || !attendance.getWorkDate().isAfter(endDate)))
+                .collect(Collectors.toList());
+
+        return attendances.stream()
+                .map(AttendanceDto::from)
+                .collect(Collectors.toList());
+    }
+
+    /**
      * ✅ 社員別勤怠履歴取得
      */
     @Transactional(readOnly = true)
