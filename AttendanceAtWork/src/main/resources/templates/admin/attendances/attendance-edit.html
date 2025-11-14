@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>勤怠編集</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body class="bg-gray-100 min-h-screen p-6">
+
+  <div class="max-w-3xl mx-auto bg-white shadow rounded-xl p-8">
+
+    <h1 class="text-2xl font-bold mb-6">📝 勤怠編集</h1>
+
+    <!-- フラッシュメッセージ -->
+    <div id="flash" class="hidden mb-4 p-3 rounded text-white"></div>
+
+    <form id="editForm" class="space-y-6">
+
+      <!-- 社員情報 -->
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="text-sm">社員番号</label>
+          <input id="employeeNo" type="text" disabled
+            class="w-full border px-3 py-2 rounded bg-gray-100" />
+        </div>
+        <div>
+          <label class="text-sm">氏名</label>
+          <input id="userName" type="text" disabled
+            class="w-full border px-3 py-2 rounded bg-gray-100" />
+        </div>
+      </div>
+
+      <!-- 日付 -->
+      <div>
+        <label class="text-sm">勤務日</label>
+        <input id="workDate" type="date" disabled
+          class="w-full border px-3 py-2 rounded bg-gray-100" />
+      </div>
+
+      <!-- 時刻入力 -->
+      <div class="grid grid-cols-2 gap-4">
+
+        <div>
+          <label class="text-sm">出勤</label>
+          <input id="clockIn" type="datetime-local"
+            class="w-full border px-3 py-2 rounded" />
+        </div>
+
+        <div>
+          <label class="text-sm">退勤</label>
+          <input id="clockOut" type="datetime-local"
+            class="w-full border px-3 py-2 rounded" />
+        </div>
+
+        <div>
+          <label class="text-sm">休憩開始</label>
+          <input id="breakStart" type="datetime-local"
+            class="w-full border px-3 py-2 rounded" />
+        </div>
+
+        <div>
+          <label class="text-sm">休憩終了</label>
+          <input id="breakEnd" type="datetime-local"
+            class="w-full border px-3 py-2 rounded" />
+        </div>
+
+      </div>
+
+      <!-- 自動計算項目 -->
+      <div class="grid grid-cols-2 gap-4 mt-2">
+        <div>
+          <label class="text-sm">休憩時間</label>
+          <input id="breakTime" type="text" disabled
+            class="w-full border px-3 py-2 rounded bg-gray-100" />
+        </div>
+        <div>
+          <label class="text-sm">勤務時間</label>
+          <input id="workTime" type="text" disabled
+            class="w-full border px-3 py-2 rounded bg-gray-100" />
+        </div>
+      </div>
+
+      <!-- 状態 -->
+      <div>
+        <label class="text-sm">状態</label>
+        <select id="status" class="w-full border px-3 py-2 rounded">
+          <option value="working">勤務中</option>
+          <option value="off">退勤</option>
+          <option value="absent">欠勤</option>
+        </select>
+      </div>
+
+      <!-- ボタン -->
+      <div class="flex justify-end gap-3">
+        <button type="button" onclick="history.back()"
+          class="px-4 py-2 bg-gray-400 text-white rounded">戻る</button>
+
+        <button type="submit"
+          class="px-5 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
+          保存
+        </button>
+      </div>
+    </form>
+  </div>
+
+  <script>
+	/* -----------------------------------------
+	     🔑 JWT（あれば使う）
+	  ----------------------------------------- */
+	  const token = localStorage.getItem("token");
+
+	  function authHeaders(extra = {}) {
+	    const headers = { ...extra };
+	    if (token) headers["Authorization"] = `Bearer ${token}`;
+	    return headers;
+	  }
+
+    const attendanceId = window.location.pathname.split("/").slice(-2)[0];
+
+    function headers() {
+      return { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" };
+    }
+
+    /* -----------------------------------------
+       フラッシュメッセージ
+    ----------------------------------------- */
+    function flash(msg, ok = true) {
+      const el = document.getElementById("flash");
+      el.textContent = msg;
+      el.className =
+        `mb-4 p-3 rounded text-white ${ok ? "bg-green-500" : "bg-red-500"}`;
+      el.classList.remove("hidden");
+      setTimeout(() => el.classList.add("hidden"), 2500);
+    }
+
+    /* -----------------------------------------
+       初期読み込み
+    ----------------------------------------- */
+    async function loadDetail() {
+      const res = await fetch(`/api/admin/attendances/${attendanceId}`, {
+        headers: headers()
+      });
+
+      if (res.status === 401) {
+        alert("認証の有効期限切れです。");
+        localStorage.clear();
+        window.location.href = "/admin/login";
+        return;
+      }
+
+      const a = await res.json();
+
+      document.getElementById("employeeNo").value = a.employeeNo;
+      document.getElementById("userName").value = a.userName;
+      document.getElementById("workDate").value = a.workDate;
+
+      document.getElementById("clockIn").value = a.clockIn?.replace(" ", "T") ?? "";
+      document.getElementById("clockOut").value = a.clockOut?.replace(" ", "T") ?? "";
+      document.getElementById("breakStart").value = a.breakStart?.replace(" ", "T") ?? "";
+      document.getElementById("breakEnd").value = a.breakEnd?.replace(" ", "T") ?? "";
+
+      document.getElementById("breakTime").value = a.breakTimeText ?? "-";
+      document.getElementById("workTime").value = a.workTimeText ?? "-";
+
+      document.getElementById("status").value = a.status;
+    }
+
+    /* -----------------------------------------
+       保存処理
+    ----------------------------------------- */
+    document.getElementById("editForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+
+      const body = {
+        clockIn: document.getElementById("clockIn").value || null,
+        clockOut: document.getElementById("clockOut").value || null,
+        breakStart: document.getElementById("breakStart").value || null,
+        breakEnd: document.getElementById("breakEnd").value || null,
+        status: document.getElementById("status").value
+      };
+
+      const res = await fetch(`/api/admin/attendances/${attendanceId}`, {
+        method: "PUT",
+        headers: headers(),
+        body: JSON.stringify(body)
+      });
+
+      if (res.ok) {
+        flash("更新しました！");
+        setTimeout(() => history.back(), 800);
+      } else {
+        flash("更新に失敗しました", false);
+      }
+    });
+
+    loadDetail();
+  </script>
+
+</body>
+</html>

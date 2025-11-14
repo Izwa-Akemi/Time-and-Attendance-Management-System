@@ -7,6 +7,7 @@ import java.util.List;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 
 import jp.co.meitaku.attendance.model.entity.Department;
 import jp.co.meitaku.attendance.repository.DepartmentRepository;
@@ -25,4 +26,10 @@ public class AttendanceViewController {
         return "admin/attendances/list";  
         // → src/main/resources/templates/admin/attendances/list.html
     }
+    /** 勤怠編集ページ */
+    @GetMapping("/admin/attendances/{id}/edit")
+    public String editAttendance(@PathVariable Integer id) {
+        return "admin/attendances/attendance-edit"; 
+    }
+    
 }
