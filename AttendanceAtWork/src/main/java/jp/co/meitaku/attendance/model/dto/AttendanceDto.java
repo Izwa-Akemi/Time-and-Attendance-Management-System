@@ -13,57 +13,83 @@ import java.util.Optional;
 @AllArgsConstructor
 @Builder
 public class AttendanceDto {
-    private Integer attendanceId;
-    private Integer userId;
-    private String employeeNo;   // ← 社員番号を追加
-    private String userName;     // ← 氏名を追加
+	private Integer attendanceId;
+	private Integer userId;
+	private String employeeNo;   // ← 社員番号を追加
+	private String userName;     // ← 氏名を追加
 
-    @JsonFormat(pattern = "yyyy-MM-dd")
-    private LocalDate workDate;
+	@JsonFormat(pattern = "yyyy-MM-dd")
+	private LocalDate workDate;
 
-    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
-    private LocalDateTime clockIn;
+	@JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+	private LocalDateTime clockIn;
 
-    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
-    private LocalDateTime breakStart;
+	@JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+	private LocalDateTime breakStart;
 
-    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
-    private LocalDateTime breakEnd;
+	@JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+	private LocalDateTime breakEnd;
 
-    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
-    private LocalDateTime clockOut;
+	@JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+	private LocalDateTime clockOut;
 
-    private Long totalWorkSeconds;
+	private Long totalWorkSeconds;
 
-    private String status; // working / off / absent
+	private String status; // working / off / absent
 
-    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
-    private LocalDateTime createdAt;
+	@JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+	private LocalDateTime createdAt;
 
-    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
-    private LocalDateTime updatedAt;
+	@JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+	private LocalDateTime updatedAt;
 
-    /** ✅ エンティティ → DTO 変換メソッド */
-    public static AttendanceDto from(Attendance e) {
-        if (e == null) return null;
-        Long seconds = Optional.ofNullable(e.getTotalWorkTime())
-                .map(Duration::getSeconds)
-                .orElse(null);
+	/*新規追加*/
+	//	private Long breakSeconds;
+	//	private String breakTimeText;
+	//	private String workTimeText;
 
-        return AttendanceDto.builder()
-                .attendanceId(e.getAttendanceId())
-                .userId(e.getUser() != null ? e.getUser().getUserId() : null)
-                .employeeNo(e.getUser() != null ? e.getUser().getEmployeeNo() : null) // ← 追加
-                .userName(e.getUser() != null ? e.getUser().getName() : null)         // ← 追加
-                .workDate(e.getWorkDate())
-                .clockIn(e.getClockIn())
-                .breakStart(e.getBreakStart())
-                .breakEnd(e.getBreakEnd())
-                .clockOut(e.getClockOut())
-                .totalWorkSeconds(seconds)
-                .status(e.getStatus())
-                .createdAt(e.getCreatedAt())
-                .updatedAt(e.getUpdatedAt())
-                .build();
-    }
+
+	/** ✅ エンティティ → DTO 変換メソッド */
+	public static AttendanceDto from(Attendance e) {
+		if (e == null) return null;
+		Long seconds = Optional.ofNullable(e.getTotalWorkTime())
+				.map(Duration::getSeconds)
+				.orElse(null);
+		/*新規追加*/
+		//		Long breakSec = null;
+		//		if (e.getBreakStart() != null && e.getBreakEnd() != null) {
+		//			breakSec = Duration.between(e.getBreakStart(), e.getBreakEnd()).getSeconds();
+		//		}
+		//
+		//		Long workSec = Optional.ofNullable(e.getTotalWorkTime())
+		//				.map(Duration::getSeconds)
+		//				.orElse(null);
+
+
+		return AttendanceDto.builder()
+				.attendanceId(e.getAttendanceId())
+				.userId(e.getUser() != null ? e.getUser().getUserId() : null)
+				.employeeNo(e.getUser() != null ? e.getUser().getEmployeeNo() : null) // ← 追加
+				.userName(e.getUser() != null ? e.getUser().getName() : null)         // ← 追加
+				.workDate(e.getWorkDate())
+				.clockIn(e.getClockIn())
+				.breakStart(e.getBreakStart())
+				.breakEnd(e.getBreakEnd())
+				.clockOut(e.getClockOut())
+				.totalWorkSeconds(seconds)
+				.status(e.getStatus())
+				.createdAt(e.getCreatedAt())
+				.updatedAt(e.getUpdatedAt())
+				//				//新規項目
+				//				.breakSeconds(breakSec)
+				//				.breakTimeText(formatTime(breakSec))
+				//				.workTimeText(formatTime(workSec))
+				.build();
+	}
+	//	private static String formatTime(Long sec) {
+	//		if (sec == null) return "-";
+	//		long h = sec / 3600;
+	//		long m = (sec % 3600) / 60;
+	//		return h + "時間 " + m + "分";
+	//	}
 }

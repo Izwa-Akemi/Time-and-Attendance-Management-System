@@ -8,6 +8,7 @@ import org.springframework.web.bind.annotation.*;
 
 import jakarta.servlet.http.HttpServletResponse;
 import jp.co.meitaku.attendance.model.dto.AttendanceDto;
+import jp.co.meitaku.attendance.model.dto.AttendanceUpdateRequest;
 import jp.co.meitaku.attendance.service.admin.AdminAttendanceService;
 
 import java.io.IOException;
@@ -93,5 +94,27 @@ public class AttendanceApiController {
 	private String safeDt(LocalDateTime dateTime) {
 		return (dateTime == null) ? "" : dateTime.toString();
 	}
+	
+	  /** 🔹1. 勤怠1件取得 */
+    @GetMapping("/{id}")
+    public AttendanceDto getAttendance(@PathVariable Integer id) {
+        return adminAttendanceService.getAttendance(id);
+    }
+
+    /** 🔹2. 勤怠更新 */
+    @PutMapping("/{id}")
+    public AttendanceDto updateAttendance(
+            @PathVariable Integer id,
+            @RequestBody AttendanceUpdateRequest req
+    ) {
+        return adminAttendanceService.updateAttendance(
+                id,
+                req.getClockIn(),
+                req.getBreakStart(),
+                req.getBreakEnd(),
+                req.getClockOut(),
+                req.getStatus()
+        );
+    }
 
 }

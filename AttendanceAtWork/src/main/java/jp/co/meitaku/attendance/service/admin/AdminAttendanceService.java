@@ -8,7 +8,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -91,18 +93,43 @@ public class AdminAttendanceService {
                 .collect(Collectors.toList());
     }
 
-    /**
-     * ✅ 管理者による修正（直接修正）
-     */
+    /** 🔹 勤怠編集（計算付き） */
     @Transactional
-    public AttendanceDto updateAttendance(Integer attendanceId, LocalDate clockIn, LocalDate clockOut) {
+    public AttendanceDto updateAttendance(
+            Integer attendanceId,
+            LocalDateTime clockIn,
+            LocalDateTime breakStart,
+            LocalDateTime breakEnd,
+            LocalDateTime clockOut,
+            String status
+    ) {
         Attendance attendance = attendanceRepository.findById(attendanceId)
-                .orElseThrow(() -> new IllegalArgumentException("対象の勤怠が見つかりません。"));
+                .orElseThrow(() -> new IllegalArgumentException("勤怠が見つかりません。"));
 
-        if (clockIn != null) attendance.setClockIn(clockIn.atStartOfDay());
-        if (clockOut != null) attendance.setClockOut(clockOut.atTime(23, 59));
-        attendanceRepository.save(attendance);
+        if (clockIn != null) attendance.setClockIn(clockIn);
+        if (breakStart != null) attendance.setBreakStart(breakStart);
+        if (breakEnd != null) attendance.setBreakEnd(breakEnd);
+        if (clockOut != null) attendance.setClockOut(clockOut);
+        if (status != null) attendance.setStatus(status);
 
-        return AttendanceDto.from(attendance);
+        // ★ 勤務時間の自動計算
+        if (attendance.getClockIn() != null && attendance.getClockOut() != null) {
+            Duration total = Duration.between(attendance.getClockIn(), attendance.getClockOut());
+
+            if (attendance.getBreakStart() != null && attendance.getBreakEnd() != null) {
+                total = total.minus(Duration.between(attendance.getBreakStart(), attendance.getBreakEnd()));
+            }
+            attendance.setTotalWorkTime(total);
+        }
+
+        return AttendanceDto.from(attendanceRepository.save(attendance));
+    }
+    
+    /** 🔹 勤怠1件取得 */
+    @Transactional(readOnly = true)
+    public AttendanceDto getAttendance(Integer id) {
+        Attendance a = attendanceRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("勤怠が見つかりません"));
+        return AttendanceDto.from(a);
     }
 }
